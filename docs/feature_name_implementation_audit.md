@@ -184,6 +184,154 @@ inverted signs, or major name/meaning mismatches.
 | Corpus tests | Low | Test/doc drift | Tests refer to stale names such as `mean_document_frequency`. | Update tests/docs to current exported names. |
 | `build_table()` filter | Low | Table-generation quirk | `get_*` helpers are skipped; table lists atomic features only. | Document this convention if desired. |
 
+
+## Reference provenance audit
+
+The tables below add a provenance pass for the flagged items. Status values mean:
+
+- **Present upstream**: the same naming, documentation, formula, or convention issue
+  appears in the original source/specification.
+- **Diverges from upstream**: this package appears to differ from the reference
+  implementation or reference documentation.
+- **Local/API issue**: the issue is caused by this package's wrappers, table export,
+  aliases, edge-case handling, or documentation rather than by a reference feature.
+- **No supplied reference**: no reference implementation was supplied for the feature,
+  or the feature is labelled novel/custom.
+- **Needs deeper validation**: a reference exists, but confirming equivalence requires
+  running reference code or checking examples beyond static inspection.
+
+References inspected locally:
+
+- jSymbolic2: `.reference-audit/jSymbolic2`
+- Partitura: `.reference-audit/partitura`
+- MIDI Toolbox 1.1: `.reference-audit/miditoolbox-1.1`
+- FANTASTIC R source: `.reference-audit/fantastic-drive`
+- FANTASTIC PDF text: `.reference-audit/FANTASTIC_docs.txt`
+- SIMILE PDF text: `.reference-audit/SIMILE_algo_docs_0.3.txt`
+
+### Pitch provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `basic_pitch_histogram` | jSymbolic2 | **Diverges from upstream** | jSymbolic `BasicPitchHistogramFeature` defines a 128-dimensional normalized vector, one bin per MIDI pitch. This package returns equal-width range bins. |
+| `pcdist1` | MIDI Toolbox | **Diverges from upstream** | MIDI Toolbox `pcdist1.m` returns a 12-component duration-accent-weighted pitch-class vector. The package's scalar `0.0` empty return and coarse duration repetition are local deviations. |
+| `importance_of_bass_register`, `importance_of_middle_register`, `importance_of_high_register` | jSymbolic2 | **Local/API issue** | The concept is upstream jSymbolic, but the empty-list division risk is a Python edge-case handling issue. |
+| `prevalence_of_most_common_pitch` | jSymbolic2 | **Local/API issue** | Upstream jSymbolic computes from prepared histograms; the empty-list guard is local Python robustness. |
+| `mean_pitch` | jSymbolic2 | **Local/API issue** | jSymbolic has the feature, but the empty-list `np.mean` behavior is local. |
+| `tessitura`, `mean_tessitura` | MIDI Toolbox / von Hippel | **Mostly local documentation issue** | MIDI Toolbox describes tessitura as deviation from median pitch height, not global range. The misleading "wider range" wording is local. |
+| `pitch_standard_deviation` / `pitch_variability` | jSymbolic2 / FANTASTIC | **Local table/API issue** | Reference names include jSymbolic `Pitch Variability`; this package computes the standard deviation but exports the title-cased implementation name rather than the literature alias. |
+| `strong_tonal_centres` | jSymbolic2 | **Local documentation issue** | jSymbolic explicitly says fifths pitch histogram; the package implementation follows that, but the local preamble says pitch-class histogram. |
+| `number_of_common_pitches_classes` | jSymbolic2 | **Local table/API issue** | jSymbolic uses `NumberOfCommonPitchClassesFeature`; the awkward pluralized display name comes from the local identifier typo. |
+| `mean_pitch_class` | jSymbolic2 | **Present upstream / semantic caveat** | jSymbolic treats pitch classes as linear values. The circular-statistics caveat is inherent to this feature family rather than a divergence. |
+| `folded_fifths_pitch_class_histogram` | jSymbolic2 | **Local representation issue** | jSymbolic returns a vector ordered by fifths. This package returns a dict keyed by pitch-class ids, so the key-order ambiguity is local. |
+| `melodic_pitch_variety` | jSymbolic2 | **Present upstream / needs validation** | jSymbolic computes from MIDI tick/onset representations. The tick-vs-note wording appears inherited in spirit, but exact parity was not run. |
+
+### Interval provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `melodic_interval_histogram` | jSymbolic2 | **Diverges from upstream** | jSymbolic `MelodicIntervalHistogramFeature` is a 128-bin normalized vector indexed by absolute semitone interval. This package returns equal-width range bins. |
+| `melodic_octaves` | jSymbolic2 | **Local type annotation issue** | jSymbolic defines this as a one-dimensional fraction. The package's returned value matches that idea; the `int` annotation is local. |
+| `ivdirdist1` | MIDI Toolbox | **Present upstream** | MIDI Toolbox `ivdirdist1.m` doc says proportion of upward intervals, but code computes `(up - down) / (up + down)`. The package mirrors the reference behavior and ambiguity. |
+| `interval_entropy` | FANTASTIC | **Likely present upstream** | FANTASTIC computes interval entropy over signed interval values in `Feature_Value_Summary_Statistics.R`; the "sizes" wording is the misleading part. |
+| `mean_absolute_interval` / `mean_melodic_interval` | FANTASTIC / jSymbolic2 | **Local table/API issue** | The duplicate table rows come from local alias export across source vocabularies. The metric exists under different reference names. |
+| `modal_interval` / `most_common_interval` | FANTASTIC / jSymbolic2 | **Local table/API issue** | Same alias-export issue as above. |
+| `minor_major_third_ratio` | jSymbolic2 | **Present upstream** | jSymbolic sets the ratio to 0 if there are no minor thirds or no major thirds. The misleading sentinel is inherited. |
+| `interval_direction_mean` vs `direction_of_melodic_motion` | jSymbolic2 / local | **Local documentation issue** | Both are defensible but need local cross-references because their denominators differ. |
+| `interval_direction_std` | Local | **No supplied reference** | This exact statistic is not a clear supplied-reference feature; the population-vs-sample choice is local. |
+
+### Contour provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| Interpolation contour properties | FANTASTIC | **Diverges from upstream by default** | FANTASTIC `line.contour()` implements the FANTASTIC turning-point method. This package's `InterpolationContour` defaults to `method="amads"`, so the table's FANTASTIC label is misleading unless the default changes or the source label is broadened. |
+| `InterpolationContour.global_direction` | FANTASTIC | **Present upstream** | FANTASTIC computes `sign(sum(int.cont.gradients))`; cancellation behavior is inherited. |
+| `InterpolationContour.mean_gradient` | FANTASTIC | **Present upstream** | FANTASTIC computes `mean(abs(int.cont.gradients))`; the local display name hides the absolute-value convention. |
+| `InterpolationContour.direction_changes` | FANTASTIC | **Present upstream** | FANTASTIC divides sign-change count by `sum(abs(sign(diff(int.cont.gradients))))`; the denominator nuance is inherited. |
+| `get_interpolation_contour_features` and sibling wrappers | Local | **Local/API issue** | Incorrect return annotations are local wrapper issues, not reference behavior. |
+| `HuronContour.class_label` | FANTASTIC | **Present upstream with implementation differences** | FANTASTIC rounds the mean pitch before classification. This package also rounds, but uses duration-weighted mean whereas FANTASTIC uses the mean of interior pitches. |
+| `StepContour.global_variation` | FANTASTIC | **Diverges from upstream** | FANTASTIC uses R `sqrt(var(...))`, i.e. sample SD. The package uses NumPy population SD by default. |
+| `PolynomialContour.coefficients` | FANTASTIC | **Diverges from upstream / needs validation** | FANTASTIC uses `stepAIC(..., direction="both")`; this package uses a simplified backward BIC search. Static inspection suggests possible divergence. |
+| `InterpolationContour.class_label` | FANTASTIC | **Present upstream / local docs** | FANTASTIC returns letters from reduced gradient classes. Any expectation of numeric output is a local documentation ambiguity. |
+
+### Duration and timing provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `length` | FANTASTIC | **Present upstream / local display risk** | FANTASTIC `len` is phrase length in notes. The misleading generic display name is inherited from a terse reference name and local title-casing. |
+| `modal_duration` vs `most_common_rhythmic_value` | FANTASTIC / jSymbolic2 | **Reference vocabulary collision** | FANTASTIC uses raw duration mode; jSymbolic uses rhythmic-value histogram bins. The local problem is exporting both with similar names without explaining the reference distinction. |
+| `mean_duration`, `mean_rhythmic_value`, `average_note_duration` | FANTASTIC / jSymbolic2 | **Reference vocabulary collision / local docs** | These reflect different reference traditions and units. The local table should expose units and algorithm family. |
+| `amount_of_staccato` | jSymbolic2 | **Present upstream** | jSymbolic defines this exactly as notes shorter than 0.1 seconds divided by total notes. The articulation-like name is inherited. |
+| `ioi_range`, `minimum_note_duration`, `note_density_per_quarter_note` | Local | **Local/API issue** | The edge-case behavior is due to local Python implementations. No supplied reference requires the crash/sentinel behavior. |
+| `global_duration` / `duration_in_seconds` | FANTASTIC / jSymbolic2 | **Local table/API issue** | The alias duplication is local. Both reference vocabularies have duration concepts, but the duplicate export is not an upstream requirement. |
+| `ioi_mean` / `average_time_between_attacks` | jSymbolic2 / local | **Local table/API issue** | The duplicate alias export is local. |
+| `ioi_standard_deviation` / `variability_of_time_between_attacks` | jSymbolic2 / local | **Local table/API issue** | The duplicate alias export is local. |
+| `total_number_of_notes` | jSymbolic2 / local | **Local table/API issue** | The duplicate with FANTASTIC `length` is a local aggregation/table issue. |
+| `shortest_rhythmic_value`, `longest_rhythmic_value` | jSymbolic2 | **Present upstream / local docs** | jSymbolic rhythmic-value features are histogram-bin/category based; the package should document that these are quantized values, not raw min/max durations. |
+| Rhythmic-value prevalence bins | jSymbolic2 | **Likely present upstream** | The bin/category definitions come from jSymbolic rhythmic-value histograms. The local docs should note overlap/nesting if retained. |
+| `complete_rests_fraction` and complete-rest stats | jSymbolic2 / local | **Needs deeper validation** | jSymbolic has complete-rest features, but the exact threshold split needs runtime/spec confirmation. Treat as local until confirmed. |
+| `ioi_contour` and summaries | Local / IDyOM-style | **No supplied reference** | No supplied source directly defines this ratio-contour API. |
+| `equal_duration_transitions`, `half_duration_transitions`, `dotted_duration_transitions` | FANTASTIC | **Local/API issue** | FANTASTIC has duration-transition features; the unused `tempo` parameter is local. |
+
+### Duration, meter, pulse, and syncopation provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `polyrhythms`, `polyrhythms_tempo_standardized` | jSymbolic2 | **Present upstream** | jSymbolic docs say non-harmonic peaks, but the Java implementation counts harmonic factor/multiple hits and returns `hits / peak_bins.length`. The package appears to reproduce the implementation, including the docs/code inversion. |
+| `onset_autocorrelation`, `onset_autocorr_peak` | MIDI Toolbox | **Diverges from upstream** | MIDI Toolbox `onsetacorr.m` quantizes `onset(nmat)` in quarter-note units. This package applies the same grid formula to second-based starts without tempo conversion. |
+| `syncopation` | Longuet-Higgins/Lee / local | **Needs deeper validation** | The supplied sources do not include the original LH implementation. Static inspection suggests a possible local weight-direction issue, but this needs examples. |
+| `number_of_unique_time_signatures` | jSymbolic2 | **Diverges from upstream** | jSymbolic `MetricalDiversityFeature` counts unique numerator/denominator strings; this package counts full `(time, numerator, denominator)` tuples. |
+| `harmonicity_of_two_strongest_rhythmic_pulses` and standardized variant | jSymbolic2 | **Likely present upstream** | jSymbolic uses thresholded beat-histogram tables for this family. The local hybrid peak-selection concern may reflect the reference algorithm; exact parity should be checked with examples. |
+| `number_of_strong_rhythmic_pulses` and standardized variant | jSymbolic2 | **Likely present upstream / doc ambiguity** | jSymbolic threshold-table columns create effective gates; the local doc should match the actual column semantics. |
+| `tempo_variability` | jSymbolic2 / local | **Needs deeper validation** | jSymbolic has a tempo variability feature, but static inspection did not confirm whether duration weighting is expected. |
+| `syncopicity` | SIMILE | **Present upstream** | SIMILE docs define syncopicity as per-level syncopations divided by number of notes, summed across levels. The non-count scale is inherited; local docs should be explicit. |
+
+### Tonality provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `tonalness` | FANTASTIC | **Mostly present upstream, with local inconsistency** | FANTASTIC uses the maximum signed correlation (`max(tonality.vector)`), not an absolute value. The local issue is that standalone and batch paths disagree about signed vs absolute values. |
+| `tonal_clarity`, `tonal_spike` | FANTASTIC | **Mostly present upstream, with local edge cases** | FANTASTIC defines `A0/A1` and `A0/sum(positive correlations)`. Empty/zero-correlation sentinel behavior is local. |
+| `tonalness_histogram` | Local | **No supplied reference** | No inspected reference defines this exported histogram; the single-scalar histogram is local. |
+| `tonal_entropy` | Local | **No supplied reference** | No inspected reference defines this exact entropy feature; the probability-distribution issue is local. |
+| `referent`, `inscale`, `proportion_inscale`, scalar-passage features | Local / FANTASTIC-inspired | **Local/API issue** | The provided FANTASTIC source computes tonalness/clarity/spike/mode, not the local key-signature-aware API. Ignoring `key_estimation` is local. |
+| `key`, `mode` | FANTASTIC / MIDI Toolbox-inspired | **Local/API issue** | References infer mode/key differently; inconsistent string formatting between MIDI-read and inferred paths is local. |
+| `proportion_conjunct_scalar`, `proportion_scalar` | Local | **No supplied reference** | No supplied implementation for these exact longest-passage proportions was identified. |
+| `tonal_tension` and cloud/momentum/strain summaries | Partitura | **Local wrapper issue** | Partitura returns a structured array with onset-unit-dependent key and tension fields. The missing `key_estimation` parameter and dict-key documentation mismatch are local wrapper/documentation issues. |
+| Shadowed `referent` / `inscale` definitions | Local | **Local/API issue** | Dead duplicate definitions are local. |
+
+### Complexity provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `mobility`, `mean_mobility`, `mobility_std` | MIDI Toolbox | **Needs deeper validation / likely divergence** | MIDI Toolbox `mobility.m` uses lag-one correlation and previous-pitch deviations. The package's `pitches[i-2]` indexing does not clearly match the intended formula; run examples before fixing. |
+| `NGramCounter.total_tokens` consumers | FANTASTIC | **Diverges from upstream** | FANTASTIC computes m-type statistics per n-gram order, with `N` as the count total for that order, then averages across orders. This package pools all n-gram orders and sums all counts. |
+| `mean_productivity` | FANTASTIC | **Diverges from upstream** | FANTASTIC computes per-order singleton-token count divided by total count for that order, then averages. This package returns hapax types divided by all types. |
+| `mean_entropy` | FANTASTIC | **Diverges from upstream** | FANTASTIC computes normalized entropy per n-gram order and averages. This package computes one pooled count entropy. |
+| `simpsons_d`, `yules_k`, `honores_h`, `sichels_s` | FANTASTIC | **Diverges from upstream** | FANTASTIC formulas are per-order and average across orders. The package uses pooled n-gram counts; Simpson's concentration naming caveat remains conceptual. |
+| `complebm` | MIDI Toolbox | **Present upstream** | MIDI Toolbox `complebm.m` uses `mean(diff(pitch(nmat)))`, i.e. signed mean interval, in both pitch and optimal methods. The sign/cancellation concern is inherited from the implementation, even if surprising. |
+| `narmour_registral_direction`, `narmour_closure`, `narmour_intervallic_difference` | IDyOM/Narmour | **No supplied reference** | The user-supplied references do not include IDyOM source or Narmour reference code. Only local docs/code were inspected. |
+| `gradus` | MIDI Toolbox | **Diverges from upstream / local rounding** | MIDI Toolbox `gradus.m` returns gradus values; this package's truncation to `int(np.mean(...))` is local. |
+| N-gram warning messages | Local | **Local/API issue** | Warning wording is local. |
+| `melodic_attraction` | MIDI Toolbox | **Needs deeper validation** | MIDI Toolbox `melattraction.m` exists; static inspection found enough differences that example-based comparison is needed. |
+| `chromatic_motion`, `stepwise_motion`, `repeated_notes` helper docs | jSymbolic2 / local | **Local documentation issue** | jSymbolic defines these as interval fractions; the local wrapper docs are clearer than helper docs. |
+| `mean_melodic_accent`, `melodic_accent_std` | MIDI Toolbox / local | **Local table/API issue** | The dual category/export behavior is local. |
+| `compltrans`, `complebm` display names | MIDI Toolbox | **Local table issue** | The terse names come from reference function names, but the table could provide readable aliases. |
+
+### Corpus provenance
+
+| Feature(s) | Nearest reference | Provenance status | Notes |
+|---|---|---|---|
+| `mean_log_tfdf` | FANTASTIC | **Diverges from upstream** | FANTASTIC `M-Type_Corpus_Features.R` uses `logb(..., 2)` normalized TF and DF before multiplying. This package uses linear normalized values. |
+| `norm_log_dist` | FANTASTIC | **Diverges from upstream** | FANTASTIC uses the same log2-normalized TF/DF vectors before the L1 distance. This package uses linear values. |
+| Corpus n-gram order loops | FANTASTIC | **Diverges from upstream** | FANTASTIC loops `for(i in min.n:max.n)`, inclusive. This package's `range(1, max_ngram_order)` excludes the maximum order. |
+| `max_log_df`, `min_log_df`, `mean_log_df` | FANTASTIC | **Diverges from upstream** | FANTASTIC uses `logb(..., 2)`. This package uses `np.log1p`, a natural-log-plus-one transform. |
+| Global/local weight features | FANTASTIC | **Needs deeper validation** | FANTASTIC source defines global/local weights in `M-Type_Corpus_Features.R`; this package's documentation and df=0 handling need example-based comparison. |
+| Corpus stats vs feature tokenization | Local | **Local/API issue** | The hardcoded corpus-stat `phrase_gap` is local. |
+| Runtime vs standalone weight features | Local | **Local/API issue** | Differing standalone and batch code paths are local. |
+| `tfdf_spearman`, `tfdf_kendall` | FANTASTIC | **Diverges partially from upstream** | FANTASTIC ranks with `ties.method="min"`; SciPy uses its own tie handling. The high-level correlation concept is upstream. |
+| Corpus tests and `build_table()` filter | Local | **Local table/test issue** | Stale test names and `get_*` table filtering are local. |
+
 ## Suggested next steps
 
 1. Triage high-severity items into confirmed bug, intended behavior needing docs,
